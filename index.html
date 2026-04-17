@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>代号：猫</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部功能区 -->
+    <header class="header">
+      <button class="btn-square" id="btn-setting" aria-label="设置">
+        <span class="btn-icon">⚙️</span>
+      </button>
+      <div class="header-right">
+        <button class="btn-circle" id="btn-shop" aria-label="商店">
+          <span class="btn-icon">🛒</span>
+        </button>
+        <button class="btn-circle" id="btn-voice" aria-label="语音">
+          <span class="btn-icon">🎙️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 中央宠物展示区 -->
+    <main class="stage">
+      <div class="cat-wrap" id="catWrap">
+        <canvas id="catCanvas"></canvas>
+      </div>
+    </main>
+
+    <!-- 对话与状态框 -->
+    <section class="dialogue" id="dialogueBox">
+      <p id="dialogueText">喵~</p>
+    </section>
+
+    <!-- 底部操作栏 -->
+    <footer class="action-bar">
+      <button class="btn-action" id="btn-feed">投喂</button>
+      <button class="btn-action" id="btn-interact">互动</button>
+    </footer>
+  </div>
+
+  <!-- 通用弹窗容器 -->
+  <div class="modal-mask hidden" id="modalMask">
+    <div class="modal-box" id="modalBox">
+      <div class="modal-header">
+        <h3 id="modalTitle">标题</h3>
+        <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast hidden" id="toast"></div>
+
+  <!-- 错误提示 -->
+  <div class="error-banner hidden" id="errorBanner">哎呀，出错了，请重启试试吧~</div>
+
+  <!-- 配置（JSON） -->
+  <script type="application/json" id="gameConfig">
+  {
+    "affinity": {
+      "min": 0,
+      "max": 100,
+      "initial": 0,
+      "dailyVoiceChanceCap": 10,
+      "voiceGainChance": 0.2
+    },
+    "player": {
+      "initialCoins": 200
+    },
+    "cooldownMs": 200,
+    "meows": [
+      { "id": "meow1", "file": "./audio/Meow1.mp3",  "weight": 10 },
+      { "id": "meow2", "file": "./audio/Meow2.mp3",  "weight": 10 },
+      { "id": "meow3", "file": "./audio/Meow3.mp3",  "weight": 10 },
+      { "id": "meow4", "file": "./audio/Meow4.mp3",  "weight": 10 },
+      { "id": "meow5", "file": "./audio/Meow5.mp3",  "weight": 10 },
+      { "id": "meow6", "file": "./audio/Meow6.mp3",  "weight": 10 },
+      { "id": "meow7", "file": "./audio/Meow7.mp3",  "weight": 10 },
+      { "id": "meow8", "file": "./audio/Meow8.mp3",  "weight": 10 },
+      { "id": "meow9", "file": "./audio/Meow9.mp3",  "weight": 10 },
+      { "id": "meow10","file": "./audio/Meow10.mp3", "weight": 10 },
+      { "id": "meow11","file": "./audio/Meow11.mp3", "weight": 10 }
+    ],
+    "foods": [
+      { "id": "fish",     "name": "小鱼干",         "affinity": 1, "icon": "🐟" },
+      { "id": "milktea",  "name": "三分糖红豆奶茶", "affinity": 5, "icon": "🧋" }
+    ],
+    "interactions": [
+      { "id": "poop",  "name": "铲屎", "affinity": 1, "requireItem": "shovel", "icon": "💩" },
+      { "id": "tease", "name": "逗猫", "affinity": 2, "requireItem": "teaser", "icon": "🎣" }
+    ],
+    "shop": [
+      { "id": "fish",    "name": "小鱼干",         "price": 1,   "type": "food",    "icon": "🐟" },
+      { "id": "milktea", "name": "三分糖红豆奶茶", "price": 4,   "type": "food",    "icon": "🧋" },
+      { "id": "shovel",  "name": "铲子",           "price": 10,  "type": "tool",    "icon": "🪣" },
+      { "id": "teaser",  "name": "逗猫棒",         "price": 100, "type": "tool",    "icon": "🎣" }
+    ],
+    "hitAreas": [
+      { "id": "head",  "name": "头部", "xPct": 0.26, "yPct": 0.12, "wPct": 0.50, "hPct": 0.32 },
+      { "id": "body",  "name": "身体", "xPct": 0.24, "yPct": 0.44, "wPct": 0.52, "hPct": 0.35 },
+      { "id": "paw",   "name": "爪子", "xPct": 0.30, "yPct": 0.79, "wPct": 0.40, "hPct": 0.18 },
+      { "id": "tail",  "name": "尾巴", "xPct": 0.08, "yPct": 0.68, "wPct": 0.22, "hPct": 0.28 }
+    ],
+    "llm": {
+      "enabled": false,
+      "endpoint": "",
+      "apiKey": "",
+      "fallbackText": "喵~",
+      "systemPrompt": "你是一只猫，请你基于你的主人对你做的行为{action}和你当前的心情（0~100）{mood}，给出你的心理活动。在心情值低于20的时候，你极度排斥用户对你的触摸行为；在心情值位于20-50的时候，你勉强能接受用户对你的触摸行为；在心情值高于50的时候，你会享受用户对你的触摸行为。输出要求：使用第一人称猫语气；字数限制：不超过15字；必须是可展示给用户的话；不要解释原因。输出格式：{\"text\":\"喵…不想被碰\"}"
+    }
+  }
+  </script>
+
+  <script src="./js/config.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/audio.js"></script>
+  <script src="./js/llm.js"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/cat.js"></script>
+  <script src="./js/main.js"></script>
+</body>
+</html>
