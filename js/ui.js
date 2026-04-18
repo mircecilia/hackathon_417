@@ -19,9 +19,17 @@
       this.$toast  = document.getElementById('toast');
       this.$dialogueText = document.getElementById('dialogueText');
 
-      this.$close.addEventListener('click', () => this.closeModal());
+      this.$close.addEventListener('click', () => {
+        const cb = this._onMaskClose;
+        this.closeModal();
+        if (cb) cb();
+      });
       this.$mask.addEventListener('click', (e) => {
-        if (e.target === this.$mask) this.closeModal();
+        if (e.target === this.$mask) {
+          const cb = this._onMaskClose;
+          this.closeModal();
+          if (cb) cb();
+        }
       });
     },
 
@@ -29,10 +37,11 @@
       this.$dialogueText.textContent = text;
     },
 
-    openModal({ title, bodyHTML, footerHTML }) {
+    openModal({ title, bodyHTML, footerHTML, onMaskClose }) {
       this.$title.textContent = title || '';
       this.$body.innerHTML = bodyHTML || '';
       this.$footer.innerHTML = footerHTML || '';
+      this._onMaskClose = onMaskClose || null;
       this.$mask.classList.remove('hidden');
     },
 
@@ -40,6 +49,7 @@
       this.$mask.classList.add('hidden');
       this.$body.innerHTML = '';
       this.$footer.innerHTML = '';
+      this._onMaskClose = null;
     },
 
     toast(msg, duration) {

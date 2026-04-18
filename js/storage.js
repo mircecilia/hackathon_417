@@ -33,6 +33,8 @@
       coins: cfg.player.initialCoins,
       inventory: {},            // { itemId: count }
       voiceGainToday: { date: todayKey(), gained: 0 },
+      cooldowns: {},            // { key: nextAvailableTimestamp } —— 支持跨刷新
+      purchaseCounters: {},     // { itemId: 累计购买数 }（用于奶茶半价规则）
       llm: {
         enabled: cfg.llm.enabled,
         endpoint: cfg.llm.endpoint,
@@ -118,6 +120,42 @@
     getLLMConfig() { return this.data.llm; },
     setLLMConfig(cfg) {
       this.data.llm = Object.assign({}, this.data.llm, cfg);
+      this.persist();
+    },
+
+    /* ========== 冷却管理（跨刷新保留） ========== */
+    /** 返回 0 表示可用；否则返回剩余毫秒 */
+    getCooldownRemain(key) {
+      const until = (this.data.cooldowns || {})[key];
+      if (!until) return 0;
+      const remain = until - Date.now();
+      return remain > 0 ? remain : 0;
+    },
+    setCooldown(key, ms) {
+      if (!this.data.cooldowns) this.data.cooldowns = {};
+      this.data.cooldowns[key] = Date.now() + ms;
+      this.persist();
+    },
+    clearExpiredCooldowns() {
+      if (!this.data.cooldowns) return;
+      const now = Date.now();
+      let changed = false;
+      for (const k in this.data.cooldowns) {
+        if (this.data.cooldowns[k] <= now) {
+          delete this.data.cooldowns[k];
+          changed = true;
+        }
+      }
+      if (changed) this.persist();
+    },
+
+    /* ========== 购买计数（用于奶茶半价规则） ========== */
+    getPurchaseCount(id) {
+      return (this.data.purchaseCounters || {})[id] || 0;
+    },
+    addPurchaseCount(id, n) {
+      if (!this.data.purchaseCounters) this.data.purchaseCounters = {};
+      this.data.purchaseCounters[id] = (this.data.purchaseCounters[id] || 0) + n;
       this.persist();
     }
   };

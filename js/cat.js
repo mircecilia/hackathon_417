@@ -1,17 +1,24 @@
-/* cat.js —— 猫 Canvas 渲染、点击区域判定、状态切换 */
+/* cat.js —— Canvas 渲染、点击区域、状态切换、反应动画
+ *
+ * 动画约定：
+ *   Cat.png  →  mid  →  action  →  mid  →  Cat.png
+ *   每两帧之间固定间隔 frameIntervalMs（默认 500ms）
+ *   在第二个 mid 帧"播放结束"时切回 Cat.png 前瞬间，播放一次随机猫叫
+ *
+ * 动作锁：_animating === true 期间 isLocked() 返回 true，
+ *   点击、投喂、互动均需通过这个判断来决定是否忽略请求。
+ */
 (function () {
   const Cat = {
-    canvas: null,
-    ctx: null,
-    wrap: null,
-    imgNormal: null,
-    imgListen: null,
+    canvas: null, ctx: null, wrap: null,
+    imgNormal: null, imgListen: null, imgOpenMouth: null, imgBackground: null,
+    sprites: {},
     currentImg: null,
-    dpr: 1,
-    logicalW: 0,    // CSS 像素下 canvas 绘制区域宽
-    logicalH: 0,
-    _clickHandler: null,
+    dpr: 1, logicalW: 0, logicalH: 0, drawRect: null,
     _listening: false,
+    _openMouth: false,
+    _animating: false,
+    _onReady: null,
 
     init({ onHit }) {
       this.wrap = document.getElementById('catWrap');
@@ -19,51 +26,58 @@
       this.ctx = this.canvas.getContext('2d');
       this.onHit = onHit;
 
-      this.imgNormal = new Image();
-      this.imgListen = new Image();
-      this.imgNormal.src = './images/Cat.png';
-      this.imgListen.src = './images/Cat_listen.png';
+      this.imgNormal    = this._loadImg('./images/Cat.png');
+      this.imgListen    = this._loadImg('./images/Cat_listen.png');
+      this.imgOpenMouth = this._loadImg('./images/Cat_openMouth.png');
+      this.imgBackground = this._loadImg('./images/Background.png');
 
-      let readyCount = 0;
-      const onReady = () => {
-        readyCount++;
-        if (readyCount >= 2) {
+      const spriteCfg = (window.GAME.config.animations || {}).sprites || {};
+      const spriteKeys = Object.keys(spriteCfg);
+      spriteKeys.forEach((key) => {
+        const c = spriteCfg[key];
+        this.sprites[key] = {
+          mid:    this._loadImg(c.midFrame),
+          action: this._loadImg(c.actionFrame)
+        };
+      });
+
+      const all = [this.imgNormal, this.imgListen, this.imgOpenMouth, this.imgBackground];
+      spriteKeys.forEach((k) => { all.push(this.sprites[k].mid, this.sprites[k].action); });
+      const total = all.length;
+      let ready = 0;
+      const onOne = () => {
+        ready++;
+        if (ready >= total) {
           this.currentImg = this.imgNormal;
           this.resize();
           this.draw();
+          if (typeof this._onReady === 'function') this._onReady();
         }
       };
-      this.imgNormal.addEventListener('load', onReady);
-      this.imgListen.addEventListener('load', onReady);
-      // 若图片加载失败，用占位绘制（只算一次）
-      this.imgNormal.addEventListener('error', () => {
-        console.warn('[cat] Cat.png 加载失败');
-        onReady();
-      });
-      this.imgListen.addEventListener('error', () => {
-        console.warn('[cat] Cat_listen.png 加载失败');
-        onReady();
+      all.forEach((img) => {
+        img.addEventListener('load',  onOne);
+        img.addEventListener('error', () => {
+          console.warn('[cat] 图片加载失败', img.src); onOne();
+        });
       });
 
-      window.addEventListener('resize', () => {
-        this.resize();
-        this.draw();
-      });
-
+      window.addEventListener('resize', () => { this.resize(); this.draw(); });
       this._bindInput();
     },
+
+    _loadImg(src) { const i = new Image(); i.src = src; return i; },
+
+    onImagesReady(cb) { this._onReady = cb; },
 
     resize() {
       const rect = this.wrap.getBoundingClientRect();
       this.logicalW = rect.width;
       this.logicalH = rect.height;
       this.dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-
       this.canvas.width  = Math.round(this.logicalW * this.dpr);
       this.canvas.height = Math.round(this.logicalH * this.dpr);
       this.canvas.style.width  = this.logicalW + 'px';
       this.canvas.style.height = this.logicalH + 'px';
-
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this.ctx.imageSmoothingEnabled = false;
     },
@@ -72,9 +86,7 @@
       if (!this.ctx) return;
       const w = this.logicalW, h = this.logicalH;
       this.ctx.clearRect(0, 0, w, h);
-
       const img = this.currentImg;
-      // 计算并缓存实际绘制矩形（用于点击区域判定）
       if (img && img.naturalWidth) {
         const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
         const dw = img.naturalWidth * scale;
@@ -87,13 +99,7 @@
         this.drawRect = { x: 0, y: 0, w: w, h: h };
         this.ctx.fillStyle = '#f0c986';
         this.ctx.fillRect(0, 0, w, h);
-        this.ctx.fillStyle = '#2b2217';
-        this.ctx.font = '16px sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('加载中...', w / 2, h / 2);
       }
-
-      // 调试模式：显示点击区域（基于实际绘制矩形）
       if (window.GAME.DEBUG_HITAREAS) {
         const areas = window.GAME.config.hitAreas;
         const r = this.drawRect;
@@ -114,21 +120,84 @@
     },
 
     setListening(isListening) {
+      if (this._animating) return;
       this._listening = !!isListening;
       this.currentImg = isListening ? this.imgListen : this.imgNormal;
       this.draw();
     },
 
+    setOpenMouth(isOpen) {
+      if (this._animating) return;
+      this._openMouth = !!isOpen;
+      if (isOpen) {
+        this.currentImg = this.imgOpenMouth;
+      } else if (!this._listening) {
+        this.currentImg = this.imgNormal;
+      }
+      this.draw();
+    },
+
+    isLocked() {
+      return this._animating || this._listening || this._openMouth;
+    },
+    isAnimating() { return this._animating; },
+
+    /**
+     * 播放反应动画
+     * Cat.png -> mid -> action -> mid -> Cat.png (每帧间隔 interval ms)
+     * 在"第二个 mid 帧结束时"切回 Cat.png 前触发随机猫叫（带 ducking）
+     * @param {string} spriteKey  'lick' | 'stretch' | 'fish'
+     * @param {Function} onDone
+     */
+    playAnimation(spriteKey, onDone) {
+      if (this._animating) { if (onDone) onDone({ skipped: true }); return; }
+      const sprite = this.sprites[spriteKey];
+      if (!sprite || !sprite.mid || !sprite.action) {
+        console.warn('[cat] 未知动画', spriteKey);
+        if (onDone) onDone({ error: true }); return;
+      }
+
+      this._animating = true;
+      const cfg = window.GAME.config.animations || {};
+      const interval = cfg.frameIntervalMs || 500;
+
+      // 严格按需求：Cat.png → mid → action → mid → Cat.png（共 5 阶段）
+      // 当前已经显示 Cat.png；先停留 interval 再开始切帧
+      const frames = [sprite.mid, sprite.action, sprite.mid];
+      let idx = -1; // -1 表示仍在展示 Cat.png
+
+      const timer = setInterval(() => {
+        if (!this._animating) { clearInterval(timer); return; }
+        idx++;
+        if (idx < frames.length) {
+          // 切入 mid / action / mid
+          this.currentImg = frames[idx];
+          this.draw();
+        } else {
+          // 第二个 mid 刚刚展示完 → 播放猫叫 + ducking + 切回 Cat.png
+          clearInterval(timer);
+          try {
+            window.GAME.Audio.duckStart();
+            window.GAME.Audio.playRandomMeow(() => {
+              window.GAME.Audio.duckEnd();
+            });
+          } catch (_) {}
+          this.currentImg = this.imgNormal;
+          this.draw();
+          this._animating = false;
+          if (onDone) onDone({ ok: true });
+        }
+      }, interval);
+    },
+
     _bindInput() {
       const handle = (clientX, clientY) => {
-        if (this._listening) return; // 听音状态下不触发身体点击
+        if (this.isLocked()) return;
         const rect = this.canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
         if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
 
-        // 将点击坐标换算到 "绘制矩形" 坐标系下
-        // canvas 显示尺寸 rect 与逻辑尺寸 logicalW/H 在 CSS 层一致（都为 CSS 像素）
         const dr = this.drawRect;
         if (!dr) return;
         const scaleX = rect.width / this.logicalW;
@@ -137,13 +206,10 @@
         const drTop    = dr.y * scaleY;
         const drWidth  = dr.w * scaleX;
         const drHeight = dr.h * scaleY;
-
-        // 点击必须在实际绘制的图片范围内
         if (x < drLeft || y < drTop || x > drLeft + drWidth || y > drTop + drHeight) return;
 
         const localX = x - drLeft;
         const localY = y - drTop;
-
         const areas = window.GAME.config.hitAreas;
         let hit = null;
         for (const a of areas) {
@@ -152,18 +218,14 @@
           const aw = a.wPct * drWidth;
           const ah = a.hPct * drHeight;
           if (localX >= ax && localX <= ax + aw && localY >= ay && localY <= ay + ah) {
-            hit = a;
-            break;
+            hit = a; break;
           }
         }
         if (hit && typeof this.onHit === 'function') {
           this.onHit(hit, { x, y, rect });
         }
       };
-
-      this.canvas.addEventListener('click', (e) => {
-        handle(e.clientX, e.clientY);
-      });
+      this.canvas.addEventListener('click', (e) => handle(e.clientX, e.clientY));
     }
   };
 

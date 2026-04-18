@@ -1,17 +1,25 @@
-/* llm.js —— LLM 调用封装，失败/未配置时返回占位 */
+/* llm.js —— LLM 调用封装，失败/未配置时使用离线语料库 */
 (function () {
   const LLM = {
     /**
      * 请求 LLM 生成猫的心理活动
-     * @param {string} action   用户行为：对话/投喂/互动/触摸头部 等
-     * @param {number} mood     当前好感度（0~100）
-     * @returns {Promise<string>} 不超过15字的中文短句
+     * @param {string} action     用户行为的自然语言描述（用于 LLM 的 prompt）
+     * @param {number} mood       当前好感度（0~100）
+     * @param {string} corpusKey  离线语料库 key（LLM 失败时用这个取本地语料）
+     * @returns {Promise<string>}
      */
-    async think(action, mood) {
+    async think(action, mood, corpusKey) {
       const cfg = window.GAME.config.llm;
       const userCfg = window.GAME.State.getLLMConfig();
       const enabled = userCfg.enabled && userCfg.endpoint;
-      if (!enabled) return cfg.fallbackText;
+      const offlineFallback = () => {
+        if (corpusKey && window.GAME.Corpus) {
+          return window.GAME.Corpus.pick(corpusKey, mood);
+        }
+        return cfg.fallbackText;
+      };
+
+      if (!enabled) return offlineFallback();
 
       const prompt = cfg.systemPrompt
         .replace('{action}', action)
@@ -47,7 +55,6 @@
         else if (data.choices && data.choices[0]) {
           const c = data.choices[0];
           text = c.message ? c.message.content : (c.text || '');
-          // 可能是 JSON 字符串
           try {
             const inner = JSON.parse(text);
             if (inner && inner.text) text = inner.text;
@@ -55,12 +62,12 @@
         }
 
         text = (text || '').trim();
-        if (!text) return cfg.fallbackText;
+        if (!text) return offlineFallback();
         if (text.length > 30) text = text.slice(0, 30);
         return text;
       } catch (e) {
-        console.warn('[llm] 调用失败', e);
-        return cfg.fallbackText;
+        console.warn('[llm] 调用失败，使用离线语料', e);
+        return offlineFallback();
       }
     }
   };

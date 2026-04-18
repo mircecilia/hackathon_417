@@ -12,16 +12,10 @@
   <div id="app">
     <!-- 顶部功能区 -->
     <header class="header">
-      <button class="btn-square" id="btn-setting" aria-label="设置">
-        <span class="btn-icon">⚙️</span>
-      </button>
+      <button class="btn-square" id="btn-setting" aria-label="设置"></button>
       <div class="header-right">
-        <button class="btn-circle" id="btn-shop" aria-label="商店">
-          <span class="btn-icon">🛒</span>
-        </button>
-        <button class="btn-circle" id="btn-voice" aria-label="语音">
-          <span class="btn-icon">🎙️</span>
-        </button>
+        <button class="btn-circle" id="btn-shop" aria-label="商店"></button>
+        <button class="btn-circle" id="btn-voice" aria-label="语音"></button>
       </div>
     </header>
 
@@ -76,38 +70,66 @@
       "initialCoins": 200
     },
     "cooldownMs": 200,
+    "toolCooldownMs": 5000,
+    "walkCooldownMs": 10000,
     "meows": [
-      { "id": "meow1", "file": "./audio/Meow1.mp3",  "weight": 10 },
-      { "id": "meow2", "file": "./audio/Meow2.mp3",  "weight": 10 },
-      { "id": "meow3", "file": "./audio/Meow3.mp3",  "weight": 10 },
-      { "id": "meow4", "file": "./audio/Meow4.mp3",  "weight": 10 },
-      { "id": "meow5", "file": "./audio/Meow5.mp3",  "weight": 10 },
-      { "id": "meow6", "file": "./audio/Meow6.mp3",  "weight": 10 },
-      { "id": "meow7", "file": "./audio/Meow7.mp3",  "weight": 10 },
-      { "id": "meow8", "file": "./audio/Meow8.mp3",  "weight": 10 },
-      { "id": "meow9", "file": "./audio/Meow9.mp3",  "weight": 10 },
-      { "id": "meow10","file": "./audio/Meow10.mp3", "weight": 10 },
-      { "id": "meow11","file": "./audio/Meow11.mp3", "weight": 10 }
+      { "id": "meow1", "file": "./audio/Meow1.mp3", "weight": 10 },
+      { "id": "meow2", "file": "./audio/Meow2.mp3", "weight": 10 },
+      { "id": "meow3", "file": "./audio/Meow3.mp3", "weight": 10 },
+      { "id": "meow4", "file": "./audio/Meow4.mp3", "weight": 10 },
+      { "id": "meow5", "file": "./audio/Meow5.mp3", "weight": 10 },
+      { "id": "meow6", "file": "./audio/Meow6.mp3", "weight": 10 }
     ],
+    "bgm": {
+      "default":  { "file": "./audio/Music.mp3",         "volume": 0.4 },
+      "special":  { "file": "./audio/Music_special.mp3", "volume": 0.4 },
+      "duckVolume": 0.06,
+      "specialMin": 20,
+      "specialMax": 50
+    },
+    "animations": {
+      "frameIntervalMs": 500,
+      "touchProbabilities": { "text": 0.8, "lick": 0.1, "stretch": 0.1 },
+      "sprites": {
+        "lick":    { "midFrame": "./images/lick_mid.png",    "actionFrame": "./images/lick_action.png" },
+        "stretch": { "midFrame": "./images/stretch_mid.png", "actionFrame": "./images/stretch_action.png" },
+        "fish":    { "midFrame": "./images/fish_mid.png",    "actionFrame": "./images/fish_action.png" }
+      }
+    },
     "foods": [
-      { "id": "fish",     "name": "小鱼干",         "affinity": 1, "icon": "🐟" },
-      { "id": "milktea",  "name": "三分糖红豆奶茶", "affinity": 5, "icon": "🧋" }
+      { "id": "fish",     "name": "小鱼干",         "affinity": 1,   "iconId": "fish",     "corpusKey": "feed:fish" },
+      { "id": "milktea",  "name": "三分糖红豆奶茶", "affinity": 5,   "iconId": "milktea",  "corpusKey": "feed:milktea" },
+      { "id": "catstrip", "name": "猫条",           "affinity": 5,   "iconId": "catstrip", "corpusKey": "feed:catstrip" },
+      { "id": "catnip",   "name": "猫薄荷",         "affinity": 10,  "iconId": "catnip",   "corpusKey": "feed:catnip" },
+      { "id": "lemon",    "name": "柠檬片",         "affinity": -10, "iconId": "lemon",    "corpusKey": "feed:lemon" }
     ],
     "interactions": [
-      { "id": "poop",  "name": "铲屎", "affinity": 1, "requireItem": "shovel", "icon": "💩" },
-      { "id": "tease", "name": "逗猫", "affinity": 2, "requireItem": "teaser", "icon": "🎣" }
+      { "id": "walk",     "name": "遛猫",            "affinity": 2,   "requireItem": null,       "iconId": "walk",     "corpusKey": "action:walk",     "cooldownMs": 10000 },
+      { "id": "poop",     "name": "铲屎",            "affinity": 1,   "requireItem": "shovel",   "iconId": "shovel",   "corpusKey": "action:poop" },
+      { "id": "tease",    "name": "逗猫",            "affinity": 2,   "requireItem": "teaser",   "iconId": "teaser",   "corpusKey": "action:tease" },
+      { "id": "brush",    "name": "梳毛",            "affinity": 2,   "requireItem": "brush",    "iconId": "brush",    "corpusKey": "action:brush" },
+      { "id": "mirror",   "name": "照镜子",          "affinity": -1,  "requireItem": "mirror",   "iconId": "mirror",   "corpusKey": "action:mirror" },
+      { "id": "laser",    "name": "激光笔逗猫",      "affinity": 3,   "requireItem": "laser",    "iconId": "laser",    "corpusKey": "action:laser" },
+      { "id": "roadtrip", "name": "公路旅行",        "affinity": 100, "requireItem": "car",      "iconId": "car",      "corpusKey": "action:roadtrip" }
     ],
     "shop": [
-      { "id": "fish",    "name": "小鱼干",         "price": 1,   "type": "food",    "icon": "🐟" },
-      { "id": "milktea", "name": "三分糖红豆奶茶", "price": 4,   "type": "food",    "icon": "🧋" },
-      { "id": "shovel",  "name": "铲子",           "price": 10,  "type": "tool",    "icon": "🪣" },
-      { "id": "teaser",  "name": "逗猫棒",         "price": 100, "type": "tool",    "icon": "🎣" }
+      { "id": "fish",     "name": "小鱼干",         "price": 1,       "type": "food", "iconId": "fish"     },
+      { "id": "milktea",  "name": "三分糖红豆奶茶", "price": 4,       "type": "food", "iconId": "milktea", "tag": "第二杯半价！", "discount": { "rule": "halfEvery2", "unitPrice": 4, "halfPrice": 2 } },
+      { "id": "catstrip", "name": "猫条",           "price": 5,       "type": "food", "iconId": "catstrip" },
+      { "id": "catnip",   "name": "猫薄荷",         "price": 100,     "type": "food", "iconId": "catnip"   },
+      { "id": "lemon",    "name": "柠檬片",         "price": 2,       "type": "food", "iconId": "lemon"    },
+      { "id": "shovel",   "name": "铲子",           "price": 10,      "type": "tool", "iconId": "shovel"   },
+      { "id": "teaser",   "name": "逗猫棒",         "price": 100,     "type": "tool", "iconId": "teaser"   },
+      { "id": "brush",    "name": "宠物毛梳",       "price": 100,     "type": "tool", "iconId": "brush"    },
+      { "id": "mirror",   "name": "镜子",           "price": 150,     "type": "tool", "iconId": "mirror"   },
+      { "id": "laser",    "name": "激光笔",         "price": 200,     "type": "tool", "iconId": "laser"    },
+      { "id": "car",      "name": "汽车",           "price": 1000000, "type": "tool", "iconId": "car"      }
     ],
     "hitAreas": [
-      { "id": "head",  "name": "头部", "xPct": 0.26, "yPct": 0.12, "wPct": 0.50, "hPct": 0.32 },
-      { "id": "body",  "name": "身体", "xPct": 0.24, "yPct": 0.44, "wPct": 0.52, "hPct": 0.35 },
-      { "id": "paw",   "name": "爪子", "xPct": 0.30, "yPct": 0.79, "wPct": 0.40, "hPct": 0.18 },
-      { "id": "tail",  "name": "尾巴", "xPct": 0.08, "yPct": 0.68, "wPct": 0.22, "hPct": 0.28 }
+      { "id": "head", "name": "头部", "corpusKey": "touch:head", "xPct": 0.26, "yPct": 0.12, "wPct": 0.50, "hPct": 0.32 },
+      { "id": "body", "name": "身体", "corpusKey": "touch:body", "xPct": 0.24, "yPct": 0.44, "wPct": 0.52, "hPct": 0.35 },
+      { "id": "paw",  "name": "爪子", "corpusKey": "touch:paw",  "xPct": 0.30, "yPct": 0.79, "wPct": 0.40, "hPct": 0.18 },
+      { "id": "tail", "name": "尾巴", "corpusKey": "touch:tail", "xPct": 0.08, "yPct": 0.68, "wPct": 0.22, "hPct": 0.28 }
     ],
     "llm": {
       "enabled": false,
@@ -120,6 +142,8 @@
   </script>
 
   <script src="./js/config.js"></script>
+  <script src="./js/corpus.js"></script>
+  <script src="./js/icons.js"></script>
   <script src="./js/storage.js"></script>
   <script src="./js/audio.js"></script>
   <script src="./js/llm.js"></script>
