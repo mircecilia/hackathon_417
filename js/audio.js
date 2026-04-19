@@ -9,6 +9,7 @@
   const AudioMgr = {
     pool: {},
     _inited: false,
+    hissAudio: null,
 
     bgmDefault: null,
     bgmSpecial: null,
@@ -31,6 +32,22 @@
           this.pool[item.id] = audio;
         } catch (e) { console.warn('[audio] 猫叫加载失败', item.id, e); }
       });
+
+      const hissCfg = window.GAME.config.hiss;
+      if (hissCfg && hissCfg.enabled && hissCfg.file) {
+        try {
+          this.hissAudio = new Audio();
+          this.hissAudio.preload = 'auto';
+          this.hissAudio.src = hissCfg.file;
+          this.hissAudio.addEventListener('error', () => {
+            console.warn('[audio] 哈气音频加载失败', hissCfg.file);
+            this.hissAudio = null;
+          }, { once: true });
+        } catch (e) {
+          console.warn('[audio] 哈气音频初始化失败', e);
+          this.hissAudio = null;
+        }
+      }
 
       // BGM
       const bgmCfg = window.GAME.config.bgm;
@@ -102,6 +119,39 @@
       } catch (e) {
         console.warn('[audio] 猫叫播放失败', e);
         setTimeout(done, 400);
+      }
+    },
+
+    playHiss(onEnded) {
+      const done = () => {
+        if (typeof onEnded === 'function') { onEnded(); onEnded = null; }
+      };
+      const audio = this.hissAudio;
+      if (!audio) {
+        this.playRandomMeow(done);
+        return;
+      }
+      try {
+        audio.currentTime = 0;
+        const onEnd = () => {
+          audio.removeEventListener('ended', onEnd);
+          done();
+        };
+        audio.addEventListener('ended', onEnd);
+        const p = audio.play();
+        if (p && p.catch) {
+          p.catch(() => {
+            audio.removeEventListener('ended', onEnd);
+            setTimeout(done, 500);
+          });
+        }
+        setTimeout(() => {
+          audio.removeEventListener('ended', onEnd);
+          done();
+        }, 2500);
+      } catch (e) {
+        console.warn('[audio] 哈气音频播放失败', e);
+        setTimeout(done, 500);
       }
     },
 

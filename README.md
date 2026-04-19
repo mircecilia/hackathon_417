@@ -6,7 +6,7 @@ HTML5 Canvas 像素风互动养成游戏。
 
 **静态服务器**，不要双击 HTML：
 ```bash
-python3 -m http.server 8080
+python -m http.server 8080
 # 浏览器打开 http://localhost:8080
 ```
 

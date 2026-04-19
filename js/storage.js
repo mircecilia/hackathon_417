@@ -35,6 +35,7 @@
       voiceGainToday: { date: todayKey(), gained: 0 },
       cooldowns: {},            // { key: nextAvailableTimestamp } —— 支持跨刷新
       purchaseCounters: {},     // { itemId: 累计购买数 }（用于奶茶半价规则）
+      recentActions: [],        // [{ type, id, at }] 最近行为记录，用于组合判定
       llm: {
         enabled: cfg.llm.enabled,
         endpoint: cfg.llm.endpoint,
@@ -157,6 +158,58 @@
       if (!this.data.purchaseCounters) this.data.purchaseCounters = {};
       this.data.purchaseCounters[id] = (this.data.purchaseCounters[id] || 0) + n;
       this.persist();
+    },
+
+    /* ========== 最近行为记录（用于连携系统） ========== */
+    clearExpiredRecentActions(maxAgeMs) {
+      const maxAge = typeof maxAgeMs === 'number' ? maxAgeMs : 30000;
+      if (!Array.isArray(this.data.recentActions)) {
+        this.data.recentActions = [];
+        this.persist();
+        return;
+      }
+      const now = Date.now();
+      const next = this.data.recentActions.filter((x) => x && x.at && now - x.at <= maxAge);
+      if (next.length !== this.data.recentActions.length) {
+        this.data.recentActions = next;
+        this.persist();
+      }
+    },
+    getRecentActions(withinMs) {
+      this.clearExpiredRecentActions();
+      const list = Array.isArray(this.data.recentActions) ? this.data.recentActions.slice() : [];
+      if (typeof withinMs !== 'number') return list;
+      const now = Date.now();
+      return list.filter((x) => x && x.at && now - x.at <= withinMs);
+    },
+    recordAction(type, id) {
+      this.clearExpiredRecentActions();
+      if (!Array.isArray(this.data.recentActions)) this.data.recentActions = [];
+      this.data.recentActions.push({ type, id, at: Date.now() });
+      if (this.data.recentActions.length > 30) {
+        this.data.recentActions = this.data.recentActions.slice(-30);
+      }
+      this.persist();
+    },
+    countRecentAction(type, id, withinMs) {
+      return this.getRecentActions(withinMs).filter((x) => x.type === type && x.id === id).length;
+    },
+    consumeRecentAction(type, id, withinMs) {
+      this.clearExpiredRecentActions();
+      if (!Array.isArray(this.data.recentActions) || !this.data.recentActions.length) return false;
+      const now = Date.now();
+      let idx = -1;
+      for (let i = this.data.recentActions.length - 1; i >= 0; i--) {
+        const item = this.data.recentActions[i];
+        if (!item || item.type !== type || item.id !== id) continue;
+        if (typeof withinMs === 'number' && now - item.at > withinMs) continue;
+        idx = i;
+        break;
+      }
+      if (idx < 0) return false;
+      this.data.recentActions.splice(idx, 1);
+      this.persist();
+      return true;
     }
   };
 
